@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fbf3e7;
+  --foreground: #2e2a24;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  /* Cat Passport Design System v1 — design-system/cat-passport-design-system-v1.md §6 */
+  --color-bg-cream: #fbf3e7;
+  --color-primary-orange: #e8873a;
+  --color-secondary-sage: #8fa888;
+  --color-accent-sky: #7fc7d9;
+  --color-text-primary: #2e2a24;
+  --color-text-secondary: #6b6355;
+
+  /* Reserved for future Passport screens only — must not appear on Home/Explore/etc. */
+  --color-passport-paper: #f1e4c6;
+  --color-passport-green: #2f4a3c;
+  --color-passport-gold: #c6a15b;
+  --color-passport-brown: #6b4a34;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
+  /* Temporary alias to the already-loaded Geist font until the brand "Rounded Sans" ships */
+  --font-display: var(--font-geist-sans);
+  --font-body: var(--font-geist-sans);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  --shadow-soft: 0 2px 12px rgba(46, 42, 36, 0.06);
+  --shadow-raised: 0 6px 20px rgba(46, 42, 36, 0.1);
+
+  /* Named "duration-*" utilities read from --transition-duration-* per Tailwind's engine */
+  --transition-duration-fast: 120ms;
+  --transition-duration-standard: 200ms;
+  --transition-duration-celebration: 280ms;
+
+  --text-md: 1rem;
+  --text-md--line-height: 1.5rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.25rem;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
 }
