@@ -3,6 +3,7 @@ import { Section } from "@/components/layout/Section";
 import { Container } from "@/components/layout/Container";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
+import { SpotCatFlow } from "@/components/spot/SpotCatFlow";
 
 export default function SpotPage() {
   return (
@@ -16,6 +17,7 @@ export default function SpotPage() {
             title="Spot a Cat"
             description="Log a sighting once you meet a neighborhood cat."
           />
+          <SpotCatFlow />
         </Container>
       </Section>
 
