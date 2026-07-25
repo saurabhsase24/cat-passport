@@ -1,4 +1,8 @@
+"use client";
+
 import { forwardRef, type HTMLAttributes } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { Container } from "@/components/layout/Container";
 
@@ -7,48 +11,70 @@ export type BottomNavigationProps = HTMLAttributes<HTMLElement>;
 interface NavItem {
   label: string;
   symbol: string;
+  href: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Home", symbol: "🏠" },
-  { label: "Explore", symbol: "🧭" },
-  { label: "Add Cat", symbol: "➕" },
-  { label: "Passports", symbol: "📘" },
-  { label: "Profile", symbol: "👤" },
+  { label: "Home", symbol: "🏠", href: "/" },
+  { label: "Explore", symbol: "🧭", href: "/explore" },
+  { label: "Add Cat", symbol: "➕", href: "/spot" },
+  { label: "Passports", symbol: "📘", href: "/passports" },
+  { label: "Profile", symbol: "👤", href: "/profile" },
 ];
 
-// Mobile-first bottom tab bar. Presentation only — no routing/active-state
-// logic until the destination screens exist.
+// Mobile-first bottom tab bar. The only Client Component in this sprint —
+// active-route highlighting needs usePathname, which requires "use client".
 export const BottomNavigation = forwardRef<HTMLElement, BottomNavigationProps>(
-  ({ className, ...props }, ref) => (
-    <nav
-      ref={ref}
-      aria-label="Primary"
-      className={cn(
-        "fixed bottom-0 left-0 right-0 z-10 border-t border-secondary-sage/15 bg-bg-cream/85 shadow-soft backdrop-blur-sm",
-        className
-      )}
-      {...props}
-    >
-      <Container size="md">
-        <ul className="flex items-stretch justify-between">
-          {NAV_ITEMS.map((item) => (
-            <li key={item.label} className="flex-1">
-              <button
-                type="button"
-                className="flex w-full flex-col items-center gap-1 py-2 text-text-secondary transition-colors duration-fast hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-cream"
-              >
-                <span aria-hidden="true" className="text-lg">
-                  {item.symbol}
-                </span>
-                <span className="text-xs font-medium">{item.label}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Container>
-    </nav>
-  )
+  ({ className, ...props }, ref) => {
+    const pathname = usePathname();
+
+    return (
+      <nav
+        ref={ref}
+        aria-label="Primary"
+        className={cn(
+          // The safe-area-inset-bottom padding below clears the home
+          // indicator on notched devices — this nav is fixed, so SafeArea's
+          // flow-based bottom padding elsewhere on the page doesn't reach it;
+          // it needs its own safe-area padding.
+          "fixed bottom-0 left-0 right-0 z-10 border-t border-secondary-sage/15 bg-bg-cream/85 pb-[env(safe-area-inset-bottom)] shadow-soft backdrop-blur-sm",
+          className
+        )}
+        {...props}
+      >
+        <Container size="md">
+          <ul className="flex items-stretch justify-between">
+            {NAV_ITEMS.map((item) => {
+              const isActive =
+                item.href === "/"
+                  ? pathname === "/"
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+              return (
+                <li key={item.label} className="flex-1">
+                  <Link
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex w-full flex-col items-center gap-1 py-2 transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-cream",
+                      isActive ? "text-text-primary" : "text-text-secondary hover:text-text-primary"
+                    )}
+                  >
+                    <span aria-hidden="true" className="text-lg">
+                      {item.symbol}
+                    </span>
+                    <span className={cn("text-xs font-medium", isActive && "font-semibold")}>
+                      {item.label}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </Container>
+      </nav>
+    );
+  }
 );
 
 BottomNavigation.displayName = "BottomNavigation";

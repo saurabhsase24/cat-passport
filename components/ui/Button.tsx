@@ -23,6 +23,31 @@ const SIZE_CLASSES: Record<NonNullable<ButtonProps["size"]>, string> = {
   lg: "min-h-13 px-6 text-lg",
 };
 
+export interface ButtonClassNameOptions {
+  variant?: ButtonProps["variant"];
+  size?: ButtonProps["size"];
+  fullWidth?: ButtonProps["fullWidth"];
+  className?: string;
+}
+
+// Shared style source for Button and any non-<button> element that must look
+// like one (e.g. a next/link Link standing in for a button-styled nav
+// action) — both call this so their appearance can't drift apart.
+export function buttonClassName({
+  variant = "primary",
+  size = "md",
+  fullWidth = false,
+  className,
+}: ButtonClassNameOptions = {}) {
+  return cn(
+    "inline-flex items-center justify-center rounded-full font-semibold transition duration-fast ease-out active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-cream disabled:opacity-50 disabled:pointer-events-none",
+    VARIANT_CLASSES[variant],
+    SIZE_CLASSES[size],
+    fullWidth && "w-full",
+    className
+  );
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
@@ -38,13 +63,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       type={type}
-      className={cn(
-        "inline-flex items-center justify-center rounded-full font-semibold transition duration-fast ease-out active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg-cream disabled:opacity-50 disabled:pointer-events-none",
-        VARIANT_CLASSES[variant],
-        SIZE_CLASSES[size],
-        fullWidth && "w-full",
-        className
-      )}
+      className={buttonClassName({ variant, size, fullWidth, className })}
       {...props}
     />
   )
