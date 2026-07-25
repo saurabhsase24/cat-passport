@@ -4,6 +4,8 @@ import { cn } from "@/lib/cn";
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   /** "none" lets photo-first content (e.g. a future TrendingCard) bleed edge-to-edge. */
   padding?: "none" | "md" | "lg";
+  /** "raised" gives content-heavy cards (e.g. cat sightings) slightly more lift. */
+  shadow?: "soft" | "raised";
 }
 
 const PADDING_CLASSES: Record<NonNullable<CardProps["padding"]>, string> = {
@@ -12,15 +14,20 @@ const PADDING_CLASSES: Record<NonNullable<CardProps["padding"]>, string> = {
   lg: "p-6",
 };
 
-// V1 has no separate "card surface" token — the card sits on the same cream
-// background as the page and relies on shadow-soft alone for elevation,
-// matching the design system's restrained, low-color-noise home palette.
+const SHADOW_CLASSES: Record<NonNullable<CardProps["shadow"]>, string> = {
+  soft: "shadow-soft",
+  raised: "shadow-raised",
+};
+
+// Sits on bg-surface, a tint brighter than the page's bg-cream, so cards read
+// as lifted content rather than blending into one flat beige rectangle.
 export const Card = forwardRef<HTMLDivElement, CardProps>(
-  ({ padding = "md", className, ...props }, ref) => (
+  ({ padding = "md", shadow = "soft", className, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
-        "rounded-md bg-bg-cream shadow-soft",
+        "rounded-md bg-bg-surface",
+        SHADOW_CLASSES[shadow],
         PADDING_CLASSES[padding],
         className
       )}

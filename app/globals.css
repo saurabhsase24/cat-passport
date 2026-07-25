@@ -11,6 +11,9 @@
 
   /* Cat Passport Design System v1 — design-system/cat-passport-design-system-v1.md §6 */
   --color-bg-cream: #fbf3e7;
+  /* Elevated surface (cards, search) — a warmer, brighter tint of bg-cream so
+     content lifts off the page without introducing a new hue or going stark white. */
+  --color-bg-surface: #fffbf4;
   --color-primary-orange: #e8873a;
   --color-secondary-sage: #8fa888;
   --color-accent-sky: #7fc7d9;
