@@ -1,6 +1,5 @@
 import { SafeArea } from "@/components/layout/SafeArea";
 import { Hero } from "@/components/home/Hero";
-import { QuickActions } from "@/components/home/QuickActions";
 import { NearbyCatsPreview } from "@/components/home/NearbyCatsPreview";
 import { MapPreview } from "@/components/home/MapPreview";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
@@ -14,9 +13,8 @@ export default function Home() {
     // inset BottomNavigation adds to itself on notched devices.
     <SafeArea edges={["top", "left", "right"]} className="pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <Hero />
-      <QuickActions />
-      <NearbyCatsPreview />
       <MapPreview />
+      <NearbyCatsPreview />
       <BottomNavigation />
     </SafeArea>
   );
