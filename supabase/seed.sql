@@ -1,0 +1,16 @@
+-- Intentionally empty for now.
+--
+-- Every domain table's owner column (cats.created_by, sightings.reported_by,
+-- sighting_photos.uploaded_by) is a real foreign key to profiles(id), which
+-- is itself a foreign key to auth.users(id). There is no way to seed a
+-- cat/sighting/photo without a real auth user existing first, and this
+-- file deliberately does not fabricate auth.users rows to work around
+-- that — auth.users is Supabase-managed, and hand-inserting into it only
+-- simulates a signup that could never really happen, which risks getting
+-- its internal invariants subtly wrong.
+--
+-- To seed real data locally: create real local auth users first (e.g.
+-- `supabase.auth.signInAnonymously()` or `.signUp()` against a running
+-- local stack — the handle_new_user trigger will create a matching
+-- profiles row), then add cats/sightings/photos that reference those
+-- real, now-existing profile IDs in a follow-up seed step.
