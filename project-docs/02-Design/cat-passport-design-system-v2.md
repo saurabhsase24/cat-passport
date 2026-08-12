@@ -2,7 +2,7 @@
 
 **Status:** Approved — ready for implementation
 **Supersedes:** `cat-passport-design-system-v1.md` (token layer only; V1 remains the reference for mascot, iconography, photography, notifications and roadmap)
-**Derived from:** `design-brief-sunlit-sand.md.md` — the canonical Sunlit Sand visual/UX brief
+**Derived from:** `design-brief-sunlit-sand.md` — the canonical Sunlit Sand visual/UX brief
 **Scope:** Token system, typography, shape and elevation language, shared component rules, and the accessibility rationale behind each value.
 
 This document records *approved decisions and their measured justification*. Where a value differs from the brief, the brief section is cited and the reason is stated. This document does not authorize routing, data-flow, database, authentication, package, Mapbox, or Passport feature work.
@@ -31,7 +31,7 @@ Everything else in brief §2 and §3 is adopted verbatim.
 The complete approved `@theme` block for [`app/globals.css`](../../app/globals.css).
 
 ```css
-/* Sunlit Sand — see project-docs/02-Design/design-brief-sunlit-sand.md.md §2
+/* Sunlit Sand — see project-docs/02-Design/design-brief-sunlit-sand.md §2
    Ratios verified against bg-cream and bg-surface; see §3 of this document. */
 --color-bg-cream:              #fcf7ef;
 --color-bg-surface:            #f3eada;  /* canonical shared surface token */
