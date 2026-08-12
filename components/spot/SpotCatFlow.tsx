@@ -42,9 +42,9 @@ interface MockMatch {
 // Same placeholder spirit as NearbyCatsPreview's PLACEHOLDER_CATS — swapped
 // for real nearby-cat lookups once matching lands.
 const MOCK_MATCHES: MockMatch[] = [
-  { id: "marmalade", name: "Marmalade", area: "Elm Street Park", lastSeen: "Seen 2 hours ago" },
-  { id: "smokey", name: "Smokey", area: "Riverside Lane", lastSeen: "Seen this morning" },
-  { id: "patches", name: "Patches", area: "Old Mill Court", lastSeen: "Seen yesterday" },
+  { id: "marmalade", name: "Marmalade", area: "Dubai Marina", lastSeen: "Seen 2 hours ago" },
+  { id: "smokey", name: "Smokey", area: "Jumeirah Lake Towers", lastSeen: "Seen this morning" },
+  { id: "patches", name: "Patches", area: "Al Barsha", lastSeen: "Seen yesterday" },
 ];
 
 const NONE_OF_THESE = "none" as const;
@@ -72,6 +72,22 @@ interface SightingDetails {
 const INITIAL_PHOTO: PhotoState = { file: null, previewUrl: null };
 const INITIAL_LOCATION: LocationState = { status: "idle", coords: null };
 const INITIAL_DETAILS: SightingDetails = { nickname: "", note: "", tags: [] };
+
+// Shared boundary for the flow's text entry fields. border-strong rather than
+// border-soft because a field the user can focus and type into is a control
+// boundary, not a divider (design system §5).
+const FIELD_CLASSES =
+  "mt-1 w-full rounded-md border border-border-strong bg-bg-surface px-3 py-2 text-md text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary";
+
+// Selection styling for the radio-backed match cards. Card supplies the
+// unselected boundary (1px border-soft); selecting one thickens it to 2px and
+// switches it to orange-strong, so the state differs in width as well as
+// colour and is never signalled by hue alone (brief §24). The peer-checked
+// utilities generate `.peer:checked ~ .peer-checked\:x`, which outranks
+// Card's plain `.border` on specificity — so this resolves deterministically
+// and does not depend on cn()'s class-string order.
+const MATCH_CARD_CLASSES =
+  "peer-checked:border-2 peer-checked:border-primary-orange-strong peer-focus-visible:ring-2 peer-focus-visible:ring-text-primary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg-cream";
 
 export function SpotCatFlow() {
   const [stage, setStage] = useState<Stage>("photo");
@@ -205,8 +221,7 @@ export function SpotCatFlow() {
         ) : (
           <Card
             padding="lg"
-            shadow="soft"
-            className="mt-5 flex flex-col items-center gap-3 border border-dashed border-secondary-sage/40 text-center"
+            className="mt-5 flex flex-col items-center gap-3 border-dashed text-center"
           >
             <span aria-hidden="true" className="text-4xl">
               📸
@@ -232,11 +247,7 @@ export function SpotCatFlow() {
           We use this to find cats nearby — it&apos;s only shared for this sighting.
         </p>
 
-        <Card
-          padding="lg"
-          shadow="soft"
-          className="mt-5 flex flex-col items-center gap-3 text-center"
-        >
+        <Card padding="lg" className="mt-5 flex flex-col items-center gap-3 text-center">
           <span aria-hidden="true" className="text-4xl">
             📍
           </span>
@@ -309,8 +320,7 @@ export function SpotCatFlow() {
                     />
                     <Card
                       padding="md"
-                      shadow="soft"
-                      className="flex items-center gap-3 border-2 border-transparent peer-checked:border-primary-orange peer-focus-visible:ring-2 peer-focus-visible:ring-text-primary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg-cream"
+                      className={cn("flex items-center gap-3", MATCH_CARD_CLASSES)}
                     >
                       <Avatar name={match.name} size="lg" />
                       <div>
@@ -333,10 +343,15 @@ export function SpotCatFlow() {
                     onChange={() => setSelectedMatchId(NONE_OF_THESE)}
                     className="peer sr-only"
                   />
+                  {/* Keeps its own dashed -> solid shift on top of the shared
+                      width/colour change, so the "new cat" option stays
+                      distinguishable from the matches above it. */}
                   <Card
                     padding="md"
-                    shadow="soft"
-                    className="flex items-center gap-3 border-2 border-dashed border-secondary-sage/40 peer-checked:border-solid peer-checked:border-primary-orange peer-focus-visible:ring-2 peer-focus-visible:ring-text-primary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg-cream"
+                    className={cn(
+                      "flex items-center gap-3 border-dashed peer-checked:border-solid",
+                      MATCH_CARD_CLASSES
+                    )}
                   >
                     <span aria-hidden="true" className="text-2xl">
                       🐾
@@ -390,7 +405,7 @@ export function SpotCatFlow() {
                   setDetails((prev) => ({ ...prev, nickname: event.target.value }))
                 }
                 placeholder="e.g. Marmalade"
-                className="mt-1 w-full rounded-md border border-secondary-sage/40 bg-bg-surface px-3 py-2 text-md text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary"
+                className={FIELD_CLASSES}
               />
             </div>
           )}
@@ -422,7 +437,7 @@ export function SpotCatFlow() {
               value={details.note}
               onChange={(event) => setDetails((prev) => ({ ...prev, note: event.target.value }))}
               placeholder="Anything else worth mentioning?"
-              className="mt-1 w-full rounded-md border border-secondary-sage/40 bg-bg-surface px-3 py-2 text-md text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-primary"
+              className={FIELD_CLASSES}
             />
           </div>
         </div>
@@ -462,18 +477,21 @@ export function SpotCatFlow() {
               className="h-40 w-40 rounded-md object-cover shadow-soft"
             />
           )}
+          {/* Deliberately not "Logged a sighting": nothing is written
+              anywhere yet, and the wording shouldn't imply it was. "Check In"
+              is reserved for the real submission once that write exists. */}
           <p className="text-md font-semibold text-text-primary">
-            Logged a sighting of {confirmedName}
+            You spotted {confirmedName}
           </p>
           <p className="text-sm text-text-secondary">
-            Nice spotting! We&apos;ll start matching this up with neighborhood cats once Cat
-            Passport goes live in your area.
+            Nothing&apos;s saved yet — this is a preview of how spotting will work once Cat
+            Passport is live in your area.
           </p>
         </Card>
 
         <div className="mt-6">
           <Button fullWidth onClick={handleReset}>
-            Log another sighting
+            Spot another cat
           </Button>
         </div>
       </div>

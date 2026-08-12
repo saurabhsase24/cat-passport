@@ -1,55 +1,104 @@
 @import "tailwindcss";
 
+/* Page ground and default ink. Kept as their own variables because the body
+   rule below and the --color-background/--color-foreground aliases both read
+   them; they must stay in sync with --color-bg-cream / --color-text-primary. */
 :root {
-  --background: #fbf3e7;
-  --foreground: #2e2a24;
+  --background: #fcf7ef;
+  --foreground: #4a3f33;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* Cat Passport Design System v1 — design-system/cat-passport-design-system-v1.md §6 */
-  --color-bg-cream: #fbf3e7;
-  /* Elevated surface (cards, search) — a warmer, brighter tint of bg-cream so
-     content lifts off the page without introducing a new hue or going stark white. */
-  --color-bg-surface: #fffbf4;
+  /* Cat Passport Design System V2 — "Sunlit Sand"
+     project-docs/02-Design/cat-passport-design-system-v2.md §2
+
+     The contrast matrix in §3 of that document is binding. Every ink/ground
+     pairing below was measured, not assumed — changing any ground colour
+     invalidates the matrix and requires re-measurement before merge. */
+
+  /* --- Grounds --- */
+  --color-bg-cream: #fcf7ef;
+  /* Canonical shared surface token. V2 inverts its polarity: surface is now a
+     warmer, *darker* tint than the page rather than a brighter one, so cards
+     recess instead of lifting. The tint alone is only 1.12:1 against cream, so
+     surfaces need the border-soft hairline as well — colour cannot carry the
+     separation by itself (§7). */
+  --color-bg-surface: #f3eada;
+
+  /* --- Borders, split by role (§5) ---
+     The test: can the user focus it, type in it, or select it? If yes, its
+     boundary is border-strong. If it only separates static content, border-soft. */
+  --color-border-soft: #e3d6c0; /* dividers, card hairlines — 1.34:1, decorative */
+  --color-border-strong: #8a7c68; /* focusable control boundaries — 3.81:1 */
+
+  /* --- Ink --- */
+  --color-text-primary: #4a3f33; /* 9.60:1 on cream, 8.58:1 on surface */
+  --color-text-secondary: #736550; /* 5.31:1 / 4.75:1 — amended from the brief's #8A7C68, which measured 3.81:1 */
+  --color-text-on-primary: #3a3227; /* 4.78:1 on orange, 6.03:1 on sage */
+
+  /* --- Accents ---
+     Two-orange rule (§4): primary-orange only ever fills a surface that carries
+     a text label, because the 4.78:1 label is what identifies the control. Any
+     small, text-free mark that is the *sole* visual signal for a state uses
+     orange-strong instead, which clears the 3:1 non-text threshold. Neither
+     orange nor sage may be the only indicator of an important state. */
   --color-primary-orange: #e8873a;
-  --color-secondary-sage: #8fa888;
-  --color-accent-sky: #7fc7d9;
-  --color-text-primary: #2e2a24;
-  --color-text-secondary: #6b6355;
+  --color-primary-orange-strong: #c96a1c; /* 3.54:1 on cream, 3.16:1 on surface */
+  --color-secondary-sage: #9fbb98;
+  --color-accent-photo-1: #f2a87f;
+  --color-accent-photo-2: #c7cfc1;
 
-  /* Reserved for future Passport screens only — must not appear on Home/Explore/etc. */
-  --color-passport-paper: #f1e4c6;
-  --color-passport-green: #2f4a3c;
-  --color-passport-gold: #c6a15b;
-  --color-passport-brown: #6b4a34;
+  /* One rounded family throughout (§6). Hierarchy comes from weight and size,
+     never from mixing sans families. Lora stays deferred to the Passport sprint. */
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-nunito);
+  --font-body: var(--font-nunito);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  /* Temporary alias to the already-loaded Geist font until the brand "Rounded Sans" ships */
-  --font-display: var(--font-geist-sans);
-  --font-body: var(--font-geist-sans);
-
+  /* Monotonic by size. lg/xl bracket the brief's 20–24px band for map and
+     major visual panels — a step the scale previously lacked, since it jumped
+     straight from 16px to 24px. */
   --radius-sm: 8px;
   --radius-md: 16px;
-  --radius-lg: 24px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
 
-  --shadow-soft: 0 2px 12px rgba(46, 42, 36, 0.06);
-  --shadow-raised: 0 6px 20px rgba(46, 42, 36, 0.1);
+  /* Restrained per §7 — separation comes from surface colour, spacing and
+     borders, so shadow is the exception for genuinely floating elements
+     rather than the default card treatment. Tinted from the V2 ink. */
+  --shadow-soft: 0 1px 6px rgba(74, 63, 51, 0.05);
+  --shadow-raised: 0 3px 12px rgba(74, 63, 51, 0.08);
 
   /* Named "duration-*" utilities read from --transition-duration-* per Tailwind's engine */
   --transition-duration-fast: 120ms;
   --transition-duration-standard: 200ms;
   --transition-duration-celebration: 280ms;
 
-  --text-md: 1rem;
-  --text-md--line-height: 1.5rem;
+  /* 17px body — the top of the brief's 16–17px range, chosen for outdoor
+     readability. Metadata stays at 14px and must not be reduced further
+     merely to manufacture hierarchy. */
+  --text-md: 1.0625rem;
+  --text-md--line-height: 1.625rem;
   --text-xl: 1.375rem;
   --text-xl--line-height: 1.75rem;
   --text-2xl: 1.75rem;
   --text-2xl--line-height: 2.25rem;
+}
+
+/* Passport-only colours (§2, brief §3). Deliberately declared outside the
+   --color-* namespace so Tailwind generates no utilities for them: the brief
+   is explicit that these must not become general application colours, and
+   having no bg-passport-* / text-passport-* utilities to reach for is the
+   cheapest way to enforce that. They gain consumers in the Passport sprint,
+   via var(--passport-*), and have none today. */
+:root {
+  --passport-paper: #f6efde;
+  --passport-border: #e3d6c0;
+  --passport-cover: #f2a87f;
+  --passport-stamp-red: #c97b4e;
+  --passport-gold-line: #d6b679;
 }
 
 body {

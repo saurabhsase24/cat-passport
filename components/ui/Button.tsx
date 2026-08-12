@@ -9,11 +9,17 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
-// Both brand accents (orange, sage) fall below 3:1 contrast against the cream
-// page background, so dark text-primary is used for labels and focus rings
-// instead of cream/white, keeping every state readable (Design System §11).
+// A filled accent can't carry a light label here — white on primary-orange
+// measures 2.64:1 — so filled surfaces use the dedicated text-on-primary ink
+// (4.78:1 on orange). The outlined secondary keeps text-primary instead,
+// because its label sits on the page ground rather than on a fill (9.60:1).
+//
+// Secondary's sage outline stays decorative rather than moving to
+// border-strong: both variants are identified by a high-contrast visible
+// label, which is the same reasoning that exempts primary's fill from the
+// 3:1 non-text threshold. Ratios per design system §3.
 const VARIANT_CLASSES: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "bg-primary-orange text-text-primary hover:bg-primary-orange/90",
+  primary: "bg-primary-orange text-text-on-primary hover:bg-primary-orange/90",
   secondary:
     "border border-secondary-sage text-text-primary hover:bg-secondary-sage/15",
 };

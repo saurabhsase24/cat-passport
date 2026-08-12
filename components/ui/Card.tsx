@@ -4,8 +4,8 @@ import { cn } from "@/lib/cn";
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   /** "none" lets photo-first content (e.g. a future TrendingCard) bleed edge-to-edge. */
   padding?: "none" | "md" | "lg";
-  /** "raised" gives content-heavy cards (e.g. cat sightings) slightly more lift. */
-  shadow?: "soft" | "raised";
+  /** Defaults to "none"; "soft"/"raised" are for deliberately elevated content. */
+  shadow?: "none" | "soft" | "raised";
 }
 
 const PADDING_CLASSES: Record<NonNullable<CardProps["padding"]>, string> = {
@@ -15,18 +15,23 @@ const PADDING_CLASSES: Record<NonNullable<CardProps["padding"]>, string> = {
 };
 
 const SHADOW_CLASSES: Record<NonNullable<CardProps["shadow"]>, string> = {
+  none: "",
   soft: "shadow-soft",
   raised: "shadow-raised",
 };
 
-// Sits on bg-surface, a tint brighter than the page's bg-cream, so cards read
-// as lifted content rather than blending into one flat beige rectangle.
+// Sits on bg-surface, which in V2 is a *darker*, warmer tint than the page's
+// bg-cream — cards recess into the ground rather than lifting off it. The
+// tint and the border-soft hairline work as a single separation treatment:
+// each is subtle alone, and together they replace the drop shadow V1 leaned
+// on. Shadow is therefore off by default and reserved for content meant to
+// read as genuinely floating (design system §7).
 export const Card = forwardRef<HTMLDivElement, CardProps>(
-  ({ padding = "md", shadow = "soft", className, ...props }, ref) => (
+  ({ padding = "md", shadow = "none", className, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
-        "rounded-md bg-bg-surface",
+        "rounded-md border border-border-soft bg-bg-surface",
         SHADOW_CLASSES[shadow],
         PADDING_CLASSES[padding],
         className

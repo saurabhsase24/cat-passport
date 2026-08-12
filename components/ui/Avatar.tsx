@@ -30,6 +30,10 @@ function getInitials(name: string): string {
 // yet (no Supabase/photo source exists in Sprint 1), and next/image throws
 // at runtime for unconfigured external hosts. Revisit once real photo URLs
 // are wired up.
+//
+// Both forms carry the border-soft hairline so a pale cat photo or a sage
+// initials disc still reads as a distinct object against the cream page —
+// the same surface-plus-border treatment Card uses (design system §5).
 export function Avatar({ src, name, size = "md", className }: AvatarProps) {
   if (src) {
     return (
@@ -38,7 +42,11 @@ export function Avatar({ src, name, size = "md", className }: AvatarProps) {
         alt={name}
         loading="lazy"
         decoding="async"
-        className={cn("rounded-full object-cover", BOX_SIZE_CLASSES[size], className)}
+        className={cn(
+          "rounded-full border border-border-soft object-cover",
+          BOX_SIZE_CLASSES[size],
+          className
+        )}
       />
     );
   }
@@ -48,7 +56,9 @@ export function Avatar({ src, name, size = "md", className }: AvatarProps) {
       role="img"
       aria-label={name}
       className={cn(
-        "flex items-center justify-center rounded-full bg-secondary-sage font-semibold text-text-primary",
+        // The initials sit on a filled sage disc, so they take text-on-primary
+        // — the ink V2 reserves for filled accent surfaces (design system §3).
+        "flex items-center justify-center rounded-full border border-border-soft bg-secondary-sage font-semibold text-text-on-primary",
         BOX_SIZE_CLASSES[size],
         INITIALS_TEXT_CLASSES[size],
         className

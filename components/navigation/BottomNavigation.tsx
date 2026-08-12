@@ -17,7 +17,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Home", symbol: "🏠", href: "/" },
   { label: "Explore", symbol: "🧭", href: "/explore" },
-  { label: "Add Cat", symbol: "➕", href: "/spot" },
+  { label: "Add", symbol: "➕", href: "/spot" },
   { label: "Passports", symbol: "📘", href: "/passports" },
   { label: "Profile", symbol: "👤", href: "/profile" },
 ];
@@ -37,7 +37,7 @@ export const BottomNavigation = forwardRef<HTMLElement, BottomNavigationProps>(
           // indicator on notched devices — this nav is fixed, so SafeArea's
           // flow-based bottom padding elsewhere on the page doesn't reach it;
           // it needs its own safe-area padding.
-          "fixed bottom-0 left-0 right-0 z-10 border-t border-secondary-sage/15 bg-bg-cream/85 pb-[env(safe-area-inset-bottom)] shadow-soft backdrop-blur-sm",
+          "fixed bottom-0 left-0 right-0 z-10 border-t border-border-soft bg-bg-cream/85 pb-[env(safe-area-inset-bottom)] shadow-soft backdrop-blur-sm",
           className
         )}
         {...props}
@@ -66,6 +66,20 @@ export const BottomNavigation = forwardRef<HTMLElement, BottomNavigationProps>(
                     <span className={cn("text-xs font-medium", isActive && "font-semibold")}>
                       {item.label}
                     </span>
+                    {/* Always rendered, transparent when inactive, so switching
+                        tabs never changes a tab's height. Uses orange-strong
+                        rather than primary-orange: this bar carries no text, so
+                        it's a standalone non-text indicator and has to clear
+                        3:1 on its own (design system §4). Colour isn't the only
+                        active signal here — the label's weight shift and
+                        aria-current carry it too. */}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "h-0.5 w-6 rounded-full",
+                        isActive ? "bg-primary-orange-strong" : "bg-transparent"
+                      )}
+                    />
                   </Link>
                 </li>
               );

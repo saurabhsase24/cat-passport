@@ -12,6 +12,11 @@ export interface StepProgressProps {
 // stage rather than a raw "Step N of 5" count, which reads calmer for a
 // short linear flow. A visually-hidden aria-live region still announces the
 // ordinal for screen reader users.
+//
+// The dots carry no text of their own, so the active one uses orange-strong
+// rather than primary-orange — a standalone non-text indicator has to clear
+// 3:1 by itself (design system §4). Colour still isn't the only signal here:
+// the stage label below and the live region both name the current step.
 export function StepProgress({ stages, currentIndex, className }: StepProgressProps) {
   const currentLabel = stages[currentIndex] ?? "";
 
@@ -24,10 +29,10 @@ export function StepProgress({ stages, currentIndex, className }: StepProgressPr
             className={cn(
               "h-1.5 w-6 rounded-full transition-colors duration-standard",
               index === currentIndex
-                ? "bg-primary-orange"
+                ? "bg-primary-orange-strong"
                 : index < currentIndex
                   ? "bg-secondary-sage"
-                  : "bg-secondary-sage/20"
+                  : "bg-border-soft"
             )}
           />
         ))}
