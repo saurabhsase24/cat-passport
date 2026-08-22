@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { cn } from "@/lib/cn";
+import { createClient } from "@/lib/supabase/client";
+import type { SightingTagValue } from "@/lib/supabase/database.types";
+import { formatRelativeTime } from "@/lib/relativeTime";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
@@ -20,6 +23,9 @@ const STAGE_LABELS: Record<Stage, string> = {
   confirmation: "Confirmation",
 };
 
+const SIGHTING_PHOTOS_BUCKET = "cat-sightings";
+const CANDIDATE_MATCH_LIMIT = 5;
+
 interface PhotoState {
   file: File | null;
   previewUrl: string | null;
@@ -32,46 +38,91 @@ interface LocationState {
   coords: { latitude: number; longitude: number } | null;
 }
 
-interface MockMatch {
+interface CatMatch {
   id: string;
   name: string;
-  area: string;
+  area: string | null;
   lastSeen: string;
 }
 
-// Same placeholder spirit as NearbyCatsPreview's PLACEHOLDER_CATS — swapped
-// for real nearby-cat lookups once matching lands.
-const MOCK_MATCHES: MockMatch[] = [
-  { id: "marmalade", name: "Marmalade", area: "Dubai Marina", lastSeen: "Seen 2 hours ago" },
-  { id: "smokey", name: "Smokey", area: "Jumeirah Lake Towers", lastSeen: "Seen this morning" },
-  { id: "patches", name: "Patches", area: "Al Barsha", lastSeen: "Seen yesterday" },
-];
+// Shape of the candidate-matches query below. The hand-written Database type
+// has no Relationships metadata for Supabase-js to infer this from, so it's
+// asserted explicitly instead of relying on inference.
+interface CatMatchRow {
+  id: string;
+  nickname: string | null;
+  sightings: { area_name: string | null; observed_at: string }[];
+}
+
+// No AI/image matching yet (out of scope this sprint) — this is a plain
+// "recently added cats" list standing in for real matching, so someone has
+// a real cat_id to select against rather than a hardcoded mock. Reads don't
+// need auth: cats/sightings are publicly SELECT-able for active cats.
+async function loadCandidateMatches(): Promise<CatMatch[]> {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("cats")
+      .select("id, nickname, sightings ( area_name, observed_at )")
+      .order("observed_at", { referencedTable: "sightings", ascending: false })
+      .limit(1, { referencedTable: "sightings" })
+      .order("created_at", { ascending: false })
+      .limit(CANDIDATE_MATCH_LIMIT)
+      .overrideTypes<CatMatchRow[], { merge: false }>();
+
+    if (error) {
+      console.error("Failed to load candidate cats:", error.message);
+      return [];
+    }
+
+    return (data ?? []).map((cat) => {
+      const latest = cat.sightings[0];
+      return {
+        id: cat.id,
+        name: cat.nickname?.trim() || "Unnamed cat",
+        area: latest?.area_name ?? null,
+        lastSeen: latest ? formatRelativeTime(latest.observed_at) : "No sightings yet",
+      };
+    });
+  } catch (err) {
+    console.error("Failed to load candidate cats:", err);
+    return [];
+  }
+}
 
 const NONE_OF_THESE = "none" as const;
 
 interface TagOption {
   emoji: string;
   label: string;
+  value: SightingTagValue;
 }
 
-// Describes this sighting, not the cat's long-term personality.
+// Describes this sighting, not the cat's long-term personality. Values match
+// the public.sighting_tag enum (supabase/migrations/20260801000006_sighting_tags.sql).
 const TAG_OPTIONS: TagOption[] = [
-  { emoji: "🍽️", label: "Eating" },
-  { emoji: "😴", label: "Sleeping" },
-  { emoji: "🐾", label: "With kittens" },
-  { emoji: "🆘", label: "Needs help" },
-  { emoji: "🤕", label: "Looks injured" },
+  { emoji: "🍽️", label: "Eating", value: "eating" },
+  { emoji: "😴", label: "Sleeping", value: "sleeping" },
+  { emoji: "🐾", label: "With kittens", value: "with_kittens" },
+  { emoji: "🆘", label: "Needs help", value: "needs_help" },
+  { emoji: "🤕", label: "Looks injured", value: "looks_injured" },
 ];
 
 interface SightingDetails {
   nickname: string;
   note: string;
-  tags: string[];
+  tags: SightingTagValue[];
 }
+
+type SubmissionState =
+  | { status: "idle" }
+  | { status: "submitting" }
+  | { status: "error"; message: string };
 
 const INITIAL_PHOTO: PhotoState = { file: null, previewUrl: null };
 const INITIAL_LOCATION: LocationState = { status: "idle", coords: null };
 const INITIAL_DETAILS: SightingDetails = { nickname: "", note: "", tags: [] };
+const INITIAL_SUBMISSION: SubmissionState = { status: "idle" };
 
 // Shared boundary for the flow's text entry fields. border-strong rather than
 // border-soft because a field the user can focus and type into is a control
@@ -94,8 +145,10 @@ export function SpotCatFlow() {
   const [photo, setPhoto] = useState<PhotoState>(INITIAL_PHOTO);
   const [location, setLocation] = useState<LocationState>(INITIAL_LOCATION);
   const [matchesPhase, setMatchesPhase] = useState<"checking" | "results">("checking");
+  const [matches, setMatches] = useState<CatMatch[]>([]);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [details, setDetails] = useState<SightingDetails>(INITIAL_DETAILS);
+  const [submission, setSubmission] = useState<SubmissionState>(INITIAL_SUBMISSION);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -113,14 +166,23 @@ export function SpotCatFlow() {
     };
   }, [photo.previewUrl]);
 
-  // Mimics the shape of the future real lookup (location/image matching
-  // takes time) without making any request. The "checking" -> "results"
-  // reset itself happens in goNext (a user event, not an effect body) so
-  // this effect only ever schedules the timer that resolves it.
+  // Real query now, not a timer. The "checking" -> "results" reset itself
+  // happens in goNext (a user event, not an effect body), so this effect
+  // only ever runs the fetch that resolves it — same shape as before, real
+  // data instead of a fixed delay.
   useEffect(() => {
     if (stage !== "matches" || matchesPhase !== "checking") return;
-    const timer = setTimeout(() => setMatchesPhase("results"), 900);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+
+    loadCandidateMatches().then((results) => {
+      if (cancelled) return;
+      setMatches(results);
+      setMatchesPhase("results");
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [stage, matchesPhase]);
 
   function goNext() {
@@ -166,12 +228,12 @@ export function SpotCatFlow() {
     );
   }
 
-  function toggleTag(tag: string) {
+  function toggleTag(value: SightingTagValue) {
     setDetails((prev) => ({
       ...prev,
-      tags: prev.tags.includes(tag)
-        ? prev.tags.filter((t) => t !== tag)
-        : [...prev.tags, tag],
+      tags: prev.tags.includes(value)
+        ? prev.tags.filter((t) => t !== value)
+        : [...prev.tags, value],
     }));
   }
 
@@ -179,9 +241,111 @@ export function SpotCatFlow() {
     if (photo.previewUrl) URL.revokeObjectURL(photo.previewUrl);
     setPhoto(INITIAL_PHOTO);
     setLocation(INITIAL_LOCATION);
+    setMatches([]);
     setSelectedMatchId(null);
     setDetails(INITIAL_DETAILS);
+    setSubmission(INITIAL_SUBMISSION);
     setStage("photo");
+  }
+
+  // The real write. Only ever called from the Details step's Continue
+  // button. Nothing here advances the stage until Supabase has actually
+  // confirmed every insert — the Confirmation step's success copy is only
+  // ever reachable through this function returning cleanly.
+  async function handleSubmit() {
+    if (!photo.file) return;
+    setSubmission({ status: "submitting" });
+
+    try {
+      const supabase = createClient();
+
+      // Anonymous identity, created only now — tied to this exact gesture
+      // (the user's first real contribution) rather than passively on page
+      // load. See lib/supabase/proxy.ts for why this moment was reserved.
+      const {
+        data: { user: existingUser },
+      } = await supabase.auth.getUser();
+
+      let user = existingUser;
+      if (!user) {
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) throw error;
+        user = data.user;
+      }
+      if (!user) throw new Error("Could not start a session. Please try again.");
+
+      // Upload into the uploader's own folder — required by the storage RLS
+      // policy: (storage.foldername(name))[1] = auth.uid().
+      const fileExt = photo.file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const storagePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from(SIGHTING_PHOTOS_BUCKET)
+        .upload(storagePath, photo.file);
+      if (uploadError) throw uploadError;
+
+      // Resolve which cat this sighting belongs to.
+      let catId: string;
+      if (selectedMatchId && selectedMatchId !== NONE_OF_THESE) {
+        catId = selectedMatchId;
+      } else {
+        const { data: newCat, error: catError } = await supabase
+          .from("cats")
+          .insert({
+            nickname: details.nickname.trim() || null,
+            primary_photo_path: storagePath,
+            created_by: user.id,
+          })
+          .select("id")
+          .single();
+        if (catError) throw catError;
+        catId = newCat.id;
+      }
+
+      // WKT text — PostGIS's geography input function parses this literal
+      // on the way in. Order is POINT(longitude latitude), not lat/lng.
+      const locationValue =
+        location.status === "granted" && location.coords
+          ? `POINT(${location.coords.longitude} ${location.coords.latitude})`
+          : null;
+
+      const { data: sighting, error: sightingError } = await supabase
+        .from("sightings")
+        .insert({
+          cat_id: catId,
+          reported_by: user.id,
+          location: locationValue,
+          note: details.note.trim() || null,
+        })
+        .select("id")
+        .single();
+      if (sightingError) throw sightingError;
+
+      const { error: photoRowError } = await supabase.from("sighting_photos").insert({
+        sighting_id: sighting.id,
+        storage_path: storagePath,
+        uploaded_by: user.id,
+        is_primary: true,
+      });
+      if (photoRowError) throw photoRowError;
+
+      if (details.tags.length > 0) {
+        const { error: tagsError } = await supabase
+          .from("sighting_tags")
+          .insert(details.tags.map((tag) => ({ sighting_id: sighting.id, tag })));
+        if (tagsError) throw tagsError;
+      }
+
+      setSubmission({ status: "idle" });
+      setStage("confirmation");
+    } catch (err) {
+      setSubmission({
+        status: "error",
+        message:
+          err instanceof Error && err.message
+            ? err.message
+            : "Something went wrong saving this sighting. Please try again.",
+      });
+    }
   }
 
   function renderPhotoStep() {
@@ -307,7 +471,7 @@ export function SpotCatFlow() {
           <fieldset className="mt-5">
             <legend className="sr-only">Choose a matching cat</legend>
             <ul className="flex flex-col gap-3">
-              {MOCK_MATCHES.map((match) => (
+              {matches.map((match) => (
                 <li key={match.id}>
                   <label className="block cursor-pointer">
                     <input
@@ -326,7 +490,7 @@ export function SpotCatFlow() {
                       <div>
                         <p className="text-md font-semibold text-text-primary">{match.name}</p>
                         <p className="text-sm text-text-secondary">
-                          {match.area} · {match.lastSeen}
+                          {match.area ? `${match.area} · ${match.lastSeen}` : match.lastSeen}
                         </p>
                       </div>
                     </Card>
@@ -369,7 +533,7 @@ export function SpotCatFlow() {
         <p aria-live="polite" className="sr-only">
           {matchesPhase === "checking"
             ? "Checking nearby passports…"
-            : `${MOCK_MATCHES.length} nearby cats found`}
+            : `${matches.length} nearby cats found`}
         </p>
       </div>
     );
@@ -377,6 +541,7 @@ export function SpotCatFlow() {
 
   function renderDetailsStep() {
     const isNewCat = selectedMatchId === NONE_OF_THESE;
+    const isSubmitting = submission.status === "submitting";
 
     return (
       <div>
@@ -401,6 +566,7 @@ export function SpotCatFlow() {
                 id="nickname"
                 type="text"
                 value={details.nickname}
+                disabled={isSubmitting}
                 onChange={(event) =>
                   setDetails((prev) => ({ ...prev, nickname: event.target.value }))
                 }
@@ -410,18 +576,18 @@ export function SpotCatFlow() {
             </div>
           )}
 
-          <fieldset>
+          <fieldset disabled={isSubmitting}>
             <legend className="text-sm font-semibold text-text-primary">
               What&apos;s happening (optional)
             </legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {TAG_OPTIONS.map((tag) => (
                 <Chip
-                  key={tag.label}
+                  key={tag.value}
                   emoji={tag.emoji}
                   label={tag.label}
-                  selected={details.tags.includes(tag.label)}
-                  onClick={() => toggleTag(tag.label)}
+                  selected={details.tags.includes(tag.value)}
+                  onClick={() => toggleTag(tag.value)}
                 />
               ))}
             </div>
@@ -435,18 +601,25 @@ export function SpotCatFlow() {
               id="note"
               rows={3}
               value={details.note}
+              disabled={isSubmitting}
               onChange={(event) => setDetails((prev) => ({ ...prev, note: event.target.value }))}
               placeholder="Anything else worth mentioning?"
               className={FIELD_CLASSES}
             />
           </div>
+
+          {submission.status === "error" && (
+            <p role="alert" className="text-sm font-medium text-primary-orange-strong">
+              {submission.message}
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
   function renderConfirmationStep() {
-    const matchedCat = MOCK_MATCHES.find((match) => match.id === selectedMatchId);
+    const matchedCat = matches.find((match) => match.id === selectedMatchId);
     const confirmedName =
       selectedMatchId === NONE_OF_THESE
         ? details.nickname.trim() || "your new cat"
@@ -477,15 +650,13 @@ export function SpotCatFlow() {
               className="h-40 w-40 rounded-md object-cover shadow-soft"
             />
           )}
-          {/* Deliberately not "Logged a sighting": nothing is written
-              anywhere yet, and the wording shouldn't imply it was. "Check In"
-              is reserved for the real submission once that write exists. */}
+          {/* Only ever rendered after handleSubmit has resolved every insert
+              successfully — see the comment above that function. */}
           <p className="text-md font-semibold text-text-primary">
             You spotted {confirmedName}
           </p>
           <p className="text-sm text-text-secondary">
-            Nothing&apos;s saved yet — this is a preview of how spotting will work once Cat
-            Passport is live in your area.
+            Saved to their Passport — thanks for keeping the neighborhood log up to date.
           </p>
         </Card>
 
@@ -498,6 +669,8 @@ export function SpotCatFlow() {
     );
   }
 
+  const isSubmitting = submission.status === "submitting";
+
   const canContinue =
     stage === "photo"
       ? photo.file !== null
@@ -507,10 +680,16 @@ export function SpotCatFlow() {
           location.status === "unavailable"
         : stage === "matches"
           ? matchesPhase === "results" && selectedMatchId !== null
-          : stage === "details";
+          : stage === "details"
+            ? !isSubmitting
+            : true;
 
   const continueLabel =
-    stage === "location" && location.status !== "granted" ? "Continue without location" : "Continue";
+    stage === "details" && isSubmitting
+      ? "Saving…"
+      : stage === "location" && location.status !== "granted"
+        ? "Continue without location"
+        : "Continue";
 
   return (
     <div className={cn("mt-6")}>
@@ -531,11 +710,20 @@ export function SpotCatFlow() {
       {stage !== "confirmation" && (
         <div className="mt-8 flex items-center gap-3">
           {stage !== "photo" && (
-            <Button variant="secondary" onClick={goBack} className="flex-none">
+            <Button
+              variant="secondary"
+              onClick={goBack}
+              disabled={isSubmitting}
+              className="flex-none"
+            >
               Back
             </Button>
           )}
-          <Button onClick={goNext} disabled={!canContinue} className="flex-1">
+          <Button
+            onClick={stage === "details" ? handleSubmit : goNext}
+            disabled={!canContinue}
+            className="flex-1"
+          >
             {continueLabel}
           </Button>
         </div>

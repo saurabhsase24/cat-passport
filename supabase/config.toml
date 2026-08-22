@@ -175,7 +175,19 @@ refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
-enable_anonymous_sign_ins = false
+# Enabled for Sprint 4: SpotCatFlow now signs a guest in anonymously at the
+# moment of their first real submission (see lib/supabase/proxy.ts, which
+# left this as a deliberate later step, and components/spot/SpotCatFlow.tsx
+# handleSubmit). Every write-path RLS policy in this schema requires the
+# `authenticated` role, so some form of auth was already required to persist
+# anything — this is the guest-account mechanism the PRD's "Guest Explorer"
+# describes, not new auth infrastructure.
+#
+# This only configures the local CLI stack. The linked remote project's
+# Authentication > Sign In / Providers > Anonymous Sign-Ins toggle in the
+# Supabase dashboard is a separate setting this file does not control and
+# must be enabled there too before writes will succeed against it.
+enable_anonymous_sign_ins = true
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
